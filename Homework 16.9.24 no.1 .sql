@@ -110,6 +110,7 @@ INSERT INTO orders (date_time, address, customer_name, customer_ph, total_price)
 ('2024-09-17 13:00', '321 Elm St', 'Michael Johnson', '555-4321', 20.10),
 ('2024-09-17 13:30', '654 Maple St', 'Sarah Wilson', '555-6789', 30.55);
 
+
 INSERT INTO products_orders (order_id, product_id, amount) VALUES
 (1, 1, 2),
 (1, 2, 1),
@@ -154,24 +155,95 @@ JOIN products_orders po ON p.product_id = po.product_id
 JOIN orders o ON o.order_id = po.order_id
 ORDER BY order_id;
 
-
-
-
-
-
-
 -- iii
+INSERT INTO products_orders (order_id, product_id, amount) VALUES
+    (1,25,10),
+    (2,16,8),
+    (3,15,6),
+    (4,10,4),
+    (5,18,2);
 
-    INSERT INTO products_orders (order_id, product_id, amount) VALUES
-        (1,25,10),
-        (2,16,8),
-        (3,15,6),
-        (4,10,4),
-        (5,18,2);
+-- iv
+UPDATE orders
+SET total_price =
+    (SELECT SUM(p.price * po.amount)
+     FROM products_orders po
+     JOIN products p on p.product_id = po.product_id
+     WHERE po.order_id = orders.order_id);
 
-SELECT o.order_id,p.product_id,amount
+SELECT order_id, total_price
+FROM orders;
+
+-- v
+SELECT o.order_id, o.total_price As 'Max Price'
+FROM orders o
+WHERE o.total_price = (SELECT MAX(total_price) FROM orders)
+
+SELECT o.order_id, o.total_price AS 'Min Price'
+FROM orders o
+WHERE o.total_price = (SELECT MIN(total_price) FROM orders)
+
+SELECT avg(o.total_price) AS 'Average Price'
+FROM orders o
+
+-- vi
+SELECT o.customer_name ,COUNT (o.order_id) AS order_count
+FROM orders o
+GROUP BY o.customer_name
+HAVING COUNT (o.order_id) =
+       (SELECT MAX (order_count)
+        FROM (SELECT COUNT (o.order_id) AS order_count
+        FROM orders o
+        GROUP BY o.customer_name) AS counts
+        )
+
+-- vii
+SELECT p.product_id, p.name AS 'Product Name', COUNT (o.order_id) AS order_count_max
+FROM products p
+JOIN products_orders po ON p.product_id  = po.product_id
+JOIN orders o ON o.order_id = po.order_id
+GROUP BY p.product_id
+HAVING COUNT (o.order_id) =
+    (SELECT MAX (order_count)
+        FROM
+        (SELECT COUNT (po2.order_id) AS order_count
+        FROM products_orders po2
+        GROUP BY po2.product_id)
+            AS max_orders)
+
+SELECT p.product_id, p.name AS 'Product Name', COUNT(o.order_id) AS order_count_min
 FROM products p
 JOIN products_orders po ON p.product_id = po.product_id
 JOIN orders o ON o.order_id = po.order_id
-ORDER BY order_id;
+GROUP BY p.product_id
+HAVING COUNT(o.order_id) =
+       (SELECT MIN(order_count)
+            FROM
+            (SELECT COUNT(po2.order_id) AS order_count
+             FROM products_orders po2
+             GROUP BY po2.product_id) AS min_orders)
 
+SELECT p.product_id, p.name AS 'Product Name', COUNT(o.order_id) AS order_count
+FROM products p
+JOIN products_orders po ON p.product_id = po.product_id
+JOIN orders o ON o.order_id = po.order_id
+GROUP BY p.product_id
+HAVING COUNT(o.order_id) =
+        (SELECT AVG(order_count)
+         FROM (SELECT COUNT(po2.order_id) AS order_count
+               FROM products_orders po2
+               GROUP BY po2.product_id) AS avg_orders)
+
+-- viii
+SELECT c.category_id, c.name AS category_name, COUNT(o.order_id) as order_count
+FROM category c
+JOIN products p ON c.category_id = p.category_id
+JOIN products_orders po ON p.product_id = po.product_id
+JOIN orders o ON o.order_id = po.order_id
+GROUP BY c.category_id
+HAVING COUNT(o.order_id) =
+       (SELECT MAX(po.order_count)
+           FROM
+        (SELECT COUNT(po2.order_id) AS order_count
+             FROM products_orders po2
+             GROUP BY po2.product_id) AS min_orders)
